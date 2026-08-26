@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PullDex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5f1e6;
+    --surface: #fffdf7;
+    --surface-raised: #ffffff;
+    --ink: #1c1a17;
+    --ink-dim: #6b6357;
+    --line: #ddd3bd;
+    --accent: #12867a;
+    --accent-ink: #ffffff;
+    --gold: #97691c;
+    --danger: #b23a2f;
+    --shadow: 0 1px 2px rgba(28,26,23,.04), 0 8px 24px rgba(28,26,23,.08);
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14171b;
+      --surface: #1b1f24;
+      --surface-raised: #21262c;
+      --ink: #ece7da;
+      --ink-dim: #918a7a;
+      --line: #333a41;
+      --accent: #35d0c0;
+      --accent-ink: #0b1513;
+      --gold: #e3b04b;
+      --danger: #ef6b5c;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #14171b;
+    --surface: #1b1f24;
+    --surface-raised: #21262c;
+    --ink: #ece7da;
+    --ink-dim: #918a7a;
+    --line: #333a41;
+    --accent: #35d0c0;
+    --accent-ink: #0b1513;
+    --gold: #e3b04b;
+    --danger: #ef6b5c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 24px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand h1 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .brand .dot { color: var(--accent); }
+  .brand .tagline {
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 10px;
+  }
+  .search-row input[type="text"] {
+    flex: 1;
+    font: inherit;
+    font-size: 16px;
+    padding: 13px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  .search-row input[type="text"]:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  .search-row button {
+    font: inherit;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 0 22px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+    transition: filter .15s ease, transform .05s ease;
+  }
+  .search-row button:hover { filter: brightness(1.06); }
+  .search-row button:active { transform: translateY(1px); }
+  .search-row button:disabled { opacity: .55; cursor: default; }
+  .search-row button:focus-visible, .copy-btn:focus-visible, .result-card:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .hint {
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .status {
+    font-size: 14px;
+    color: var(--ink-dim);
+    min-height: 20px;
+  }
+  .status.error { color: var(--danger); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 10px;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color .12s ease, transform .08s ease;
+  }
+  .result-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .result-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .result-card img {
+    width: 100%;
+    aspect-ratio: 5 / 7;
+    object-fit: cover;
+    border-radius: 6px;
+    background: var(--line);
+    display: block;
+  }
+  .result-card .r-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .result-card .r-set {
+    font-size: 11px;
+    color: var(--ink-dim);
+    font-family: "IBM Plex Mono", monospace;
+  }
+
+  .empty-state {
+    color: var(--ink-dim);
+    font-size: 14px;
+    padding: 30px 4px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-md);
+    text-align: center;
+  }
+
+  .detail {
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .detail.placeholder {
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    color: var(--ink-dim);
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .detail-head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .detail-head img {
+    width: 92px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    background: var(--line);
+    display: block;
+  }
+  .detail-head .d-name {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+  .detail-head .d-set {
+    margin-top: 4px;
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    font-family: "IBM Plex Mono", monospace;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-dim);
+  }
+  .field-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .field-value {
+    flex: 1;
+    min-width: 0;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    padding: 9px 11px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  .field-value.price { color: var(--gold); font-weight: 600; }
+  .field-sub {
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    margin-top: 2px;
+  }
+
+  .copy-btn {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 0 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-raised);
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color .12s ease, background .12s ease;
+  }
+  .copy-btn:hover { border-color: var(--accent); }
+  .copy-btn.copied {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .divider { height: 1px; background: var(--line); border: none; margin: 2px 0; }
+
+  footer.note {
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  footer.note a { color: var(--accent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <h1>PullDex<span class="dot">.</span></h1>
+      <span class="tagline">Slå kort op &mdash; kopiér lige ind i Pogly</span>
+    </div>
+  </header>
+
+  <div>
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Kortnavn, fx “Charizard ex”" autocomplete="off" />
+      <button id="searchBtn" type="button">Søg</button>
+    </div>
+    <div class="status" id="status">Skriv et kortnavn og tryk Søg eller Enter.</div>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="results" id="results"></div>
+    </div>
+
+    <div class="detail placeholder" id="detail">
+      Vælg et kort fra søgeresultaterne for at se detaljer og kopiere værdier.
+    </div>
+  </div>
+
+  <footer class="note">
+    Data fra <a href="https://pokemontcg.io" target="_blank" rel="noopener">pokemontcg.io</a> (gratis, offentligt API). Foreslået sjældenhed er et gæt ud fra kortets rå rarity-tekst &mdash; tjek det passer med Poglys dropdown-valg, før du sender det live. Priser er referencer fra Cardmarket/TCGplayer via samme API, ikke en live notering &mdash; dobbelttjek selv hvis det betyder noget for streamen.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  const searchInput = document.getElementById("searchInput");
+  const searchBtn = document.getElementById("searchBtn");
+  const statusEl = document.getElementById("status");
+  const resultsEl = document.getElementById("results");
+  const detailEl = document.getElementById("detail");
+
+  let currentCards = [];
+  let selectedId = null;
+
+  const RARITY_RULES = [
+    [/secret|rainbow|shiny|gold/i, "Secret Rare"],
+    [/alt(ernate)?\s*art|trainer gallery/i, "Alt Art"],
+    [/special illustration|illustration rare/i, "Illustration Rare"],
+    [/ultra|double rare|hyper rare/i, "Ultra Rare"],
+    [/holo/i, "Holo Rare"],
+    [/^rare$/i, "Rare"],
+    [/uncommon/i, "Uncommon"],
+    [/^common$/i, "Common"]
+  ];
+
+  function guessRarity(raw, subtypes) {
+    const types = subtypes || [];
+    if (types.includes("EX")) return "EX";
+    if (!raw) return "Rare";
+    for (const [re, bucket] of RARITY_RULES) {
+      if (re.test(raw)) return bucket;
+    }
+    return "Rare";
+  }
+
+  function setStatus(text, isError) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle("error", !!isError);
+  }
+
+  function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // pokemontcg.io's search backend returns transient 500/502s fairly often,
+  // especially on quoted-phrase queries — retry a few times before giving up.
+  async function fetchWithRetry(url, attempts) {
+    let lastErr;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) return res;
+        lastErr = new Error("HTTP " + res.status);
+      } catch (err) {
+        lastErr = err;
+      }
+      if (i < attempts - 1) {
+        setStatus("Kortsøgning svarede ikke — prøver igen (" + (i + 2) + "/" + attempts + ") …");
+        await wait(500 * (i + 1));
+      }
+    }
+    throw lastErr;
+  }
+
+  async function search(term) {
+    if (!term.trim()) return;
+    searchBtn.disabled = true;
+    setStatus("Søger …");
+    resultsEl.innerHTML = "";
+    detailEl.classList.add("placeholder");
+    detailEl.innerHTML = "Vælg et kort fra søgeresultaterne for at se detaljer og kopiere værdier.";
+    selectedId = null;
+
+    const q = encodeURIComponent('name:"' + term.trim() + '"');
+    const url = "https://api.pokemontcg.io/v2/cards?q=" + q +
+      "&pageSize=24&orderBy=-set.releaseDate&select=id,name,images,rarity,set,number,subtypes,cardmarket,tcgplayer";
+
+    try {
+      const res = await fetchWithRetry(url, 4);
+      const data = await res.json();
+      currentCards = data.data || [];
+
+      if (currentCards.length === 0) {
+        resultsEl.innerHTML = '<div class="empty-state">Ingen kort fundet for &quot;' + escapeHtml(term) + '&quot;. Prøv et andet navn eller stavning.</div>';
+        setStatus("Ingen resultater.");
+        return;
+      }
+
+      renderResults();
+      setStatus(currentCards.length + " kort fundet — klik på et for detaljer.");
+    } catch (err) {
+      setStatus("Kunne ikke hente kort lige nu (" + err.message + "). Prøv igen om lidt.", true);
+    } finally {
+      searchBtn.disabled = false;
+    }
+  }
+
+  function renderResults() {
+    resultsEl.innerHTML = "";
+    for (const card of currentCards) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "result-card" + (card.id === selectedId ? " selected" : "");
+      btn.innerHTML =
+        '<img src="' + (card.images && card.images.small || "") + '" alt="" loading="lazy" />' +
+        '<div class="r-name">' + escapeHtml(card.name) + '</div>' +
+        '<div class="r-set">' + escapeHtml(card.set ? card.set.name : "") + ' · #' + escapeHtml(card.number || "?") + '</div>';
+      btn.addEventListener("click", () => selectCard(card.id));
+      resultsEl.appendChild(btn);
+    }
+  }
+
+  function selectCard(id) {
+    selectedId = id;
+    renderResults();
+    const card = currentCards.find(c => c.id === id);
+    if (!card) return;
+    renderDetail(card);
+  }
+
+  function money(n, symbol) {
+    if (n === undefined || n === null || Number.isNaN(n)) return null;
+    return symbol + Number(n).toFixed(2);
+  }
+
+  function renderDetail(card) {
+    detailEl.classList.remove("placeholder");
+
+    const imageUrl = (card.images && (card.images.large || card.images.small)) || "";
+    const rawRarity = card.rarity || "Ukendt";
+    const suggested = guessRarity(rawRarity, card.subtypes);
+
+    const cm = card.cardmarket && card.cardmarket.prices;
+    const tp = card.tcgplayer && card.tcgplayer.prices;
+    let tpMarket = null;
+    if (tp) {
+      const variant = tp.holofoil || tp.reverseHolofoil || tp.normal || tp["1stEditionHolofoil"];
+      if (variant && typeof variant.market === "number") tpMarket = variant.market;
+    }
+    const cmTrend = cm && typeof cm.trendPrice === "number" ? cm.trendPrice : null;
+    const cmAvg = cm && typeof cm.averageSellPrice === "number" ? cm.averageSellPrice : null;
+
+    const archiveLine = buildArchiveLine(card.name, imageUrl, suggested, cmTrend, tpMarket);
+
+    detailEl.innerHTML = `
+      <div class="detail-head">
+        <img src="${imageUrl}" alt="" />
+        <div>
+          <div class="d-name">${escapeHtml(card.name)}</div>
+          <div class="d-set">${escapeHtml(card.set ? card.set.name : "")} · #${escapeHtml(card.number || "?")}</div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      ${field("Card Name", card.name)}
+      ${field("Card Image URL", imageUrl)}
+      ${field("Rarity (foreslået til Pogly)", suggested, "Rå tekst fra API: " + rawRarity)}
+      ${cmTrend !== null ? field("Cardmarket trend-pris", money(cmTrend, "€"), "Cardmarket trendPrice") : ""}
+      ${cmAvg !== null && cmAvg !== cmTrend ? field("Cardmarket gns. salgspris", money(cmAvg, "€")) : ""}
+      ${tpMarket !== null ? field("TCGplayer markedspris", money(tpMarket, "$")) : ""}
+      ${(cmTrend === null && cmAvg === null && tpMarket === null) ? '<div class="field-sub">Ingen prisdata tilgængelig for dette kort &mdash; slå det op manuelt på Cardmarket.</div>' : ""}
+
+      <hr class="divider" />
+
+      <div class="field-group">
+        <div class="field-label">Arkiv-linje til Pogly Hit Archive</div>
+        <div class="field-row">
+          <div class="field-value" title="${escapeHtml(archiveLine)}">${escapeHtml(archiveLine)}</div>
+          <button type="button" class="copy-btn" data-value="${escapeHtml(archiveLine)}">Kopiér</button>
+        </div>
+        <div class="field-sub">Indsæt som en ny linje i widgetens Hit Archive-liste for at gøre kortet shuffle-bart live.</div>
+      </div>
+    `;
+
+    detailEl.querySelectorAll(".copy-btn").forEach(btn => {
+      btn.addEventListener("click", () => copyToClipboard(btn.dataset.value, btn));
+    });
+  }
+
+  function buildArchiveLine(name, imageUrl, rarity, cmTrend, tpMarket) {
+    let price = "", source = "None";
+    if (cmTrend !== null) { price = money(cmTrend, "€"); source = "Cardmarket"; }
+    else if (tpMarket !== null) { price = money(tpMarket, "$"); source = "TCGplayer"; }
+    const clean = (s) => String(s || "").replace(/\|/g, "-");
+    return [clean(name), clean(imageUrl), clean(price), source, clean(rarity)].join("|");
+  }
+
+  function field(label, value, sub) {
+    if (value === null || value === undefined || value === "") return "";
+    const isPrice = /pris/i.test(label);
+    const safeVal = escapeHtml(String(value));
+    return `
+      <div class="field-group">
+        <div class="field-label">${escapeHtml(label)}</div>
+        <div class="field-row">
+          <div class="field-value${isPrice ? " price" : ""}" title="${safeVal}">${safeVal}</div>
+          <button type="button" class="copy-btn" data-value="${safeVal}">Kopiér</button>
+        </div>
+        ${sub ? '<div class="field-sub">' + escapeHtml(sub) + '</div>' : ""}
+      </div>
+    `;
+  }
+
+  function copyToClipboard(value, btn) {
+    const done = () => {
+      const original = btn.textContent;
+      btn.textContent = "Kopieret!";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove("copied");
+      }, 1100);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(done).catch(() => fallbackCopy(value, done));
+    } else {
+      fallbackCopy(value, done);
+    }
+  }
+
+  function fallbackCopy(value, done) {
+    const ta = document.createElement("textarea");
+    ta.value = value;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    done();
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  searchBtn.addEventListener("click", () => search(searchInput.value));
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") search(searchInput.value);
+  });
+  searchInput.focus();
+})();
+</script>
+</body>
+</html>

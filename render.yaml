@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: pulldex
+    runtime: static
+    staticPublishPath: .
+    buildCommand: ""
+    pullRequestPreviewsEnabled: false
